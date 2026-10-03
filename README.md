@@ -1,15 +1,14 @@
 <div align="center">
 
-<img src="docs/img/hero.png" alt="Sticky Focus" width="100%">
+<img src="docs/img/banner.png" alt="Sticky Focus" width="100%">
 
-# 🗒️ Sticky Focus
+<br><br>
 
 **Помодоро-таймер в виде стикера прямо на рабочем столе**
 
 Всегда поверх всех окон · Бесплатно · Для Windows
 
 [![Скачать](https://img.shields.io/badge/⬇️_Скачать-Windows-C83C0A?style=for-the-badge)](https://github.com/V1erahere/sticky-focus/releases/latest)
-[![Лендинг](https://img.shields.io/badge/🌐_Лендинг-sticky--focus-5BBFB5?style=for-the-badge)](https://V1erahere.github.io/sticky-focus)
 
 </div>
 
