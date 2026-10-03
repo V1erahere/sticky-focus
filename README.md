@@ -1,22 +1,67 @@
-# Sticky Focus 🗒️
+<div align="center">
 
-A tiny always-on-top Pomodoro timer that lives on your desktop as a sticky note.
+<img src="docs/img/hero.png" alt="Sticky Focus" width="100%">
 
-**Features:** tasks · subtasks · focus timer · themes · stamps
+# 🗒️ Sticky Focus
 
-## Run from source
+**Помодоро-таймер в виде стикера прямо на рабочем столе**
+
+Всегда поверх всех окон · Бесплатно · Для Windows
+
+[![Скачать](https://img.shields.io/badge/⬇️_Скачать-Windows-C83C0A?style=for-the-badge)](https://github.com/V1erahere/sticky-focus/releases/latest)
+[![Лендинг](https://img.shields.io/badge/🌐_Лендинг-sticky--focus-5BBFB5?style=for-the-badge)](https://V1erahere.github.io/sticky-focus)
+
+</div>
+
+---
+
+## Зачем это нужно
+
+<img src="docs/img/problem.png" alt="Без фокуса — хаос" width="100%">
+
+Открытые вкладки, уведомления, соцсети — всё это постоянно отвлекает.
+Sticky Focus живёт поверх всего и не даёт забыть, над чем ты сейчас работаешь.
+
+---
+
+## Как это выглядит
+
+<img src="docs/img/feature1.png" alt="Sticky Focus в работе" width="100%">
+
+Маленький стикер висит в углу экрана, пока ты работаешь в любой программе — в браузере, в Photoshop, в игре.
+
+---
+
+## Что умеет
+
+<img src="docs/img/feature2.png" alt="Фичи Sticky Focus" width="100%">
+
+| Фича | Описание |
+|------|----------|
+| 📝 **Задачи и подзадачи** | Добавляй задачи и разбивай их на подпункты |
+| ⏱️ **Помодоро-таймер** | Встроенный таймер фокуса прямо в стикере |
+| 🎨 **Темы оформления** | Несколько цветовых тем на выбор |
+| ✅ **Зачёркивание задач** | Отмечай выполненное — это приятно |
+| 📌 **Поверх всех окон** | Стикер всегда виден, что бы ты ни делала |
+| 🪟 **Компактный режим** | Сворачивается в маленький виджет |
+
+---
+
+## Запуск из исходников
+
+Нужен [Node.js](https://nodejs.org) версии 18+
 
 ```bash
 npm install
 npm start
 ```
 
-> Requires [Node.js](https://nodejs.org) and npm.
-
-## Landing page
-
-[sticky-focus landing](https://V1erahere.github.io/sticky-focus/)
-
 ---
 
-Made with ♥ by [Vera Kashtanova](https://github.com/V1erahere)
+<div align="center">
+
+<img src="docs/img/closing.png" alt="Оставайся в фокусе" width="100%">
+
+Сделано с ♥ by [Vera Kashtanova](https://github.com/V1erahere)
+
+</div>
