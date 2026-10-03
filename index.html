@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sticky Focus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap">
+<style>
+:root {
+  --paper:       #F8F6F1;
+  --line-c:      #C0D1ED;
+  --margin-c:    #EDB8C4;
+  --ink:         #1A1826;
+  --ink-mid:     #4C4A6A;
+  --ink-muted:   #9494B8;
+  --hole-bg:     #E6E2DC;
+  --ember:       #C83C0A;
+  --star-a:      #FF5CAD;
+  --star-b:      #00C9A7;
+  --tape1-bg:    linear-gradient(135deg,rgba(220,150,165,.55) 0%,rgba(210,135,155,.70) 35%,rgba(215,145,160,.60) 65%);
+  --tape2-bg:    linear-gradient(135deg,rgba(90,105,52,.60) 0%,rgba(80,98,46,.72) 40%,rgba(88,103,52,.62) 100%);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  background: transparent !important;
+  overflow: hidden;
+  width: 390px;
+  height: 670px;
+}
+body {
+  background: transparent !important;
+  overflow: hidden;
+  width: 390px;
+  height: 670px;
+  font-family: 'Caveat', cursive;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* ── Outer wrapper ── */
+.scene {
+  position: relative;
+  width: 338px;
+  flex-shrink: 0;
+  margin-top: 34px;
+  -webkit-app-region: no-drag;
+  overflow: visible; /* stars intentionally overflow */
+}
+
+/* ── Wind wobble on timer end ── */
+@keyframes windWobble {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  18%  { transform: translate(-4px, -9px) rotate(-1.6deg); }
+  36%  { transform: translate(3px, -5px) rotate(1.1deg); }
+  54%  { transform: translate(-3px, -10px) rotate(-1.4deg); }
+  72%  { transform: translate(2px, -5px) rotate(0.7deg); }
+  88%  { transform: translate(-1px, -3px) rotate(-0.4deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.scene.wobbling {
+  animation: windWobble 2s ease-in-out;
+}
+
+/* ── Drag strip above paper ── */
+.tape-bar {
+  position: absolute;
+  top: -30px;
+  left: 0; right: 0;
+  height: 48px;
+  z-index: 10;
+  -webkit-app-region: drag;
+  cursor: grab;
+}
+.tape-bar * { -webkit-app-region: no-drag; }
+
+/* ── Single × close button ── */
+.win-close {
+  position: fixed;
+  top: 4px;
+  right: 6px;
+  z-index: 100;
+  -webkit-app-region: no-drag;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: rgba(255,255,255,0.48);
+  padding: 3px 6px;
+  transition: color .15s, transform .12s;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+  user-select: none;
+}
+.win-close:hover {
+  color: rgba(255,255,255,0.95);
+  transform: scale(1.15);
+}
+
+/* ── Tape pieces ── */
+.tape-1, .tape-2 {
+  position: absolute; z-index: 4;
+  height: 26px; border-radius: 1px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+  pointer-events: none;
+}
+.tape-1 {
+  width: 76px; top: -22px; left: 50%;
+  transform: translateX(-78%) rotate(-3deg);
+  background: var(--tape1-bg);
+}
+.tape-1::after {
+  content: ''; position: absolute; inset: 3px 8px;
+  background: rgba(255,255,255,0.18); border-radius: 1px;
+}
+.tape-2 {
+  width: 58px; top: -20px; left: 50%;
+  transform: translateX(8%) rotate(2deg);
+  background: var(--tape2-bg);
+}
+.tape-2::after {
+  content: ''; position: absolute; inset: 3px 6px;
+  background: rgba(255,255,255,0.14); border-radius: 1px;
+}
+
+/* ── Stars ── */
+.star {
+  position: absolute; z-index: 3;
+  pointer-events: none; line-height: 0;
+}
+.s-bl  { bottom: -22px; left:  -22px; }
+.s-tr  { top:   18px;   right: -18px; }
+.s-trp { top:   14px;   right:  16px; }
+.s-rp  { top:   46px;   right:   1px; }
+.star-a { fill: var(--star-a); }
+.star-b { fill: var(--star-b); }
+
+/* ── Paper card ── */
+.paper {
+  position: relative; z-index: 1; display: flex;
+  border-radius: 1px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right,
+      transparent 35px, var(--margin-c) 35px, var(--margin-c) 37px, transparent 37px),
+    repeating-linear-gradient(to bottom,
+      transparent 0, transparent 26px, var(--line-c) 26px, var(--line-c) 27px);
+  box-shadow: 3px 4px 20px rgba(0,0,0,0.20), 0 1px 5px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+/* ── Big paper stamps ── */
+.paper-stamps {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  overflow: hidden;
+}
+.paper-stamp-big {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: center;
+}
+.paper-stamp-big svg {
+  display: block;
+  opacity: 0.72;
+  animation: stampAppear 0.42s cubic-bezier(0.2, 0, 0.2, 1.6) both;
+}
+@keyframes stampAppear {
+  from { opacity: 0; transform: scale(0.12); }
+  to   { opacity: 0.72; transform: scale(1); }
+}
+
+/* ── Holes ── */
+.holes {
+  width: 36px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: space-around;
+  padding: 24px 0;
+  background-color: var(--paper); position: relative; z-index: 1;
+}
+.hole {
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--hole-bg);
+  border: 1.5px solid rgba(0,0,0,0.10);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.16);
+}
+
+/* ── Content ── */
+.content { flex: 1; min-width: 0; padding: 12px 14px 18px; position: relative; z-index: 1; }
+
+/* ── Compliment of the day ── */
+.compliment-of-day {
+  font-family: 'Caveat', cursive;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  text-align: left;
+  padding: 0 14px 6px 0;
+  line-height: 1.3;
+  min-height: 18px;
+}
+
+/* ── Mode tabs ── */
+.mode-tabs { display: flex; gap: 5px; margin-bottom: 5px; }
+.mode-tab {
+  font-family: 'Caveat', cursive; font-size: 16px; font-weight: 600;
+  padding: 2px 9px; border: 1.5px solid transparent;
+  border-radius: 2px; background: none; color: var(--ink-muted);
+  cursor: pointer; transition: color .12s, border-color .12s, background .12s;
+}
+.mode-tab:hover { color: var(--ink); border-color: rgba(0,0,0,0.13); }
+.mode-tab.active { background: var(--ember); color: #fff; border-color: var(--ember); }
+
+/* ── Timer ── */
+.timer-area {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 10px; padding: 4px 0 12px;
+}
+.timer-ring { position: relative; width: 118px; height: 118px; }
+.timer-ring svg { width: 118px; height: 118px; transform: rotate(-90deg); overflow: visible; }
+.r-track { fill: none; stroke: #C8BEB0; stroke-width: 5.5; filter: url(#sketchy); }
+.r-prog {
+  fill: none; stroke: var(--ember); stroke-width: 5;
+  stroke-linecap: round; filter: url(#sketchy);
+  transition: stroke-dashoffset 1s linear;
+}
+.timer-face {
+  position: absolute; inset: 0;
+}
+.timer-digits {
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  transform: translateY(-65%) translateX(-3px);
+  text-align: center;
+  font-size: 44px; font-weight: 700;
+  letter-spacing: -2px; font-variant-numeric: tabular-nums;
+  color: var(--ink); line-height: 1; user-select: none;
+  transition: opacity .4s, color .4s;
+}
+/* ── Rest mode: dim the ring and digits (not the rest-face overlay!) ── */
+.timer-ring.rest .r-prog    { stroke: var(--ink-muted); transition: stroke .4s; }
+.timer-ring.rest .r-track   { stroke: var(--line-c); }
+.timer-ring.rest .timer-digits { opacity: 0.32; }
+.timer-ring.rest .timer-lbl    { opacity: 0.32; }
+.timer-edit {
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  transform: translateY(-65%);
+  display: flex; align-items: center; justify-content: center;
+  gap: 1px; line-height: 1;
+}
+[hidden] { display: none !important; }
+.timer-input {
+  font-family: 'Caveat', cursive;
+  font-size: 30px; font-weight: 700;
+  letter-spacing: -1px; font-variant-numeric: tabular-nums;
+  color: var(--ink); line-height: 1;
+  text-align: center; background: transparent;
+  border: none; border-bottom: 2px solid var(--line-c);
+  outline: none; width: 40px; padding: 0; -moz-appearance: textfield;
+  transition: border-color .13s;
+}
+.timer-input:focus { border-color: var(--ember); }
+.timer-input::-webkit-outer-spin-button,
+.timer-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.timer-edit-sep {
+  font-family: 'Caveat', cursive;
+  font-size: 26px; font-weight: 700;
+  color: var(--ink-muted);
+  line-height: 1; padding-bottom: 2px;
+  user-select: none;
+}
+.timer-lbl {
+  font-size: 12px; color: var(--ink-muted); letter-spacing: 0.04em; user-select: none;
+  position: absolute; bottom: 14px; left: 0; right: 0; text-align: center;
+}
+.rest-face-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s ease; z-index: 6;
+}
+.rest-face-overlay.show { opacity: 1; }
+.rest-bubble {
+  position: absolute;
+  bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%) translateY(6px) scale(.88);
+  background: var(--ember); color: #fff;
+  font-family: 'Caveat', cursive; font-size: 17px; font-weight: 700;
+  padding: 5px 14px; border-radius: 10px;
+  white-space: nowrap; letter-spacing: 0.03em;
+  opacity: 0; pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease; z-index: 20;
+}
+.rest-bubble::after {
+  content: ''; position: absolute;
+  top: 100%; left: 50%; transform: translateX(-50%);
+  border: 7px solid transparent; border-top-color: var(--ember);
+}
+.rest-bubble.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+
+/* ── Controls ── */
+.controls { display: flex; gap: 8px; align-items: center; }
+.btn-main {
+  font-family: 'Caveat', cursive; font-size: 18px; font-weight: 700;
+  letter-spacing: 0.03em; padding: 5px 20px;
+  background: var(--ember); color: #fff;
+  border: none; border-radius: 2px; cursor: pointer;
+  min-width: 90px; transition: opacity .13s;
+}
+.btn-main:hover { opacity: 0.88; }
+.btn-icon {
+  width: 32px; height: 32px; background: none;
+  border: 1.5px solid var(--line-c); border-radius: 2px;
+  cursor: pointer; color: var(--ink-mid); font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .13s, color .13s;
+}
+.btn-icon:hover { border-color: var(--ink-mid); color: var(--ink); }
+
+/* ── Divider ── */
+.divider { height: 1px; background: var(--line-c); margin: 2px -14px 10px; }
+
+/* ── Tasks header ── */
+.tasks-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  height: 26px; margin-bottom: 0;
+}
+.tasks-lbl {
+  font-size: 13px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--ink-muted); line-height: 26px;
+}
+.clear-stamps-btn {
+  font-family: 'Caveat', cursive; font-size: 13px;
+  color: var(--ink-muted); background: none; border: none;
+  cursor: pointer; padding: 0; line-height: 1; transition: color .12s;
+}
+.clear-stamps-btn:hover { color: var(--ember); }
+
+/* ── Add row ── */
+.add-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.task-input {
+  flex: 1; min-width: 0; font-family: 'Caveat', cursive; font-size: 18px;
+  padding: 3px 6px; background: transparent;
+  border: none; border-bottom: 1.5px solid var(--line-c);
+  color: var(--ink); outline: none; transition: border-color .13s;
+}
+.task-input::placeholder { color: var(--ink-muted); }
+.task-input:focus { border-color: var(--ember); }
+.btn-add {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--ember); color: #fff; border: none;
+  border-radius: 2px; cursor: pointer; font-size: 22px; font-weight: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding-bottom: 2px; transition: opacity .13s;
+}
+.btn-add:hover { opacity: 0.88; }
+
+/* ── Task list ── */
+.task-list {
+  list-style: none; display: flex; flex-direction: column;
+  max-height: 182px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--line-c) transparent;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0, transparent 25px,
+    var(--line-c) 25px, var(--line-c) 26px
+  );
+  background-attachment: local;
+}
+.task-list::-webkit-scrollbar { width: 3px; }
+.task-list::-webkit-scrollbar-thumb { background: var(--line-c); }
+
+/* ── Task item ── */
+.task-item { position: relative; }
+.task-row {
+  display: flex; align-items: center; gap: 7px;
+  height: 25px; padding: 0 4px; transition: background .1s;
+  position: relative; z-index: 1;
+}
+.task-row:hover { background: rgba(200,60,10,0.04); }
+
+/* ── Active task: pencil-sketch outline ── */
+.task-item.active::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px 0;
+  border: 2px solid var(--ember);
+  border-radius: 3px;
+  pointer-events: none;
+  filter: url(#pencil-border);
+  opacity: 0.6;
+  z-index: 0;
+}
+.subtask-area { position: relative; z-index: 1; }
+
+/* ── Task time counter ── */
+.task-time {
+  font-family: 'Caveat', cursive;
+  font-size: 15px; font-weight: 700;
+  color: var(--ember);
+  flex-shrink: 0; min-width: 24px;
+  text-align: right; opacity: 0.75;
+  letter-spacing: 0;
+}
+.task-item.active .task-time { opacity: 1; }
+.task-item.done .task-time { color: var(--ink-muted); opacity: 0.6; }
+.task-item.done .task-text { text-decoration: line-through; color: var(--ink-muted); }
+.task-cb {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 1.5px solid var(--ink-muted); border-radius: 2px;
+  background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: background .13s, border-color .13s;
+}
+.task-cb:hover { border-color: var(--ember); }
+.task-item.done .task-cb { background: var(--ember); border-color: var(--ember); }
+.chk { display: none; color: #fff; font-size: 9px; font-weight: 700; }
+.task-item.done .chk { display: block; }
+.task-text {
+  flex: 1; font-size: 19px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 25px;
+}
+.task-stamp {
+  flex-shrink: 0; width: 24px; height: 24px;
+  display: none; align-items: center; justify-content: center;
+  transform: rotate(-8deg); transition: transform .15s;
+}
+.task-stamp:hover { transform: rotate(-4deg) scale(1.15); }
+.task-item.done .task-stamp { display: flex; }
+.task-expand {
+  width: 16px; height: 16px; flex-shrink: 0;
+  background: none; border: none; padding: 0;
+  cursor: pointer; color: var(--ink-muted); font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .12s; user-select: none;
+}
+.task-expand:hover { color: var(--ember); }
+.task-del {
+  width: 16px; height: 16px; background: none; border: none; padding: 0;
+  cursor: pointer; color: var(--ink-muted); font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .12s, color .12s;
+}
+.task-row:hover .task-del { opacity: 1; }
+.task-del:hover { color: var(--ember); }
+
+/* ── Subtask area ── */
+.subtask-area {
+  padding: 3px 4px 5px 26px;
+  background: rgba(0,0,0,0.025);
+  border-top: 1px dashed var(--line-c);
+}
+.subtask-item { display: flex; align-items: center; gap: 5px; height: 22px; padding: 0 2px; }
+.subtask-item.done .sub-text { text-decoration: line-through; color: var(--ink-muted); }
+.sub-cb {
+  width: 11px; height: 11px; flex-shrink: 0;
+  border: 1.5px solid var(--ink-muted); border-radius: 50%;
+  background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: background .13s, border-color .13s;
+}
+.sub-cb:hover { border-color: var(--ember); }
+.subtask-item.done .sub-cb { background: var(--ember); border-color: var(--ember); }
+.sub-chk { display: none; color: #fff; font-size: 6px; font-weight: 700; }
+.subtask-item.done .sub-chk { display: block; }
+.sub-text {
+  flex: 1; font-size: 14px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sub-stamp {
+  width: 16px; height: 16px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.sub-del {
+  width: 14px; height: 14px; background: none; border: none; padding: 0;
+  cursor: pointer; color: var(--ink-muted); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .12s, color .12s;
+}
+.subtask-item:hover .sub-del { opacity: 1; }
+.sub-del:hover { color: var(--ember); }
+.subtask-add-row { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+.subtask-input {
+  flex: 1; min-width: 0; font-family: 'Caveat', cursive; font-size: 14px;
+  padding: 1px 4px; background: transparent;
+  border: none; border-bottom: 1px solid var(--line-c);
+  color: var(--ink); outline: none; transition: border-color .13s;
+}
+.subtask-input::placeholder { color: var(--ink-muted); }
+.subtask-input:focus { border-color: var(--ember); }
+.sub-add {
+  width: 20px; height: 20px; flex-shrink: 0;
+  background: var(--ember); color: #fff; border: none;
+  border-radius: 2px; cursor: pointer;
+  font-size: 16px; font-weight: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding-bottom: 1px; transition: opacity .13s;
+}
+.sub-add:hover { opacity: 0.88; }
+
+/* ── Empty message ── */
+.empty-msg {
+  height: 26px; display: flex; align-items: center;
+  padding: 0 4px; font-size: 17px; color: var(--ink-muted);
+}
+
+/* ── Bottom row ── */
+.bottom-row {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-top: 10px; gap: 6px;
+}
+.theme-strip { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.theme-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer; padding: 0;
+  transition: transform .15s, border-color .15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.22); outline: none;
+}
+.theme-dot:hover  { transform: scale(1.18); }
+.theme-dot.active { border-color: var(--ink); transform: scale(1.22); }
+.kbd-hints {
+  font-family: 'DM Sans', sans-serif; font-size: 10px;
+  color: var(--ink-muted); letter-spacing: 0.02em; text-align: right;
+}
+kbd { font-size: 9px; background: var(--line-c); color: var(--ink-mid); padding: 1px 4px; border-radius: 2px; }
+
+/* ── Compact mode toggle button ── */
+.compact-toggle-row {
+  display: flex; justify-content: flex-end; margin: 4px 0 0;
+}
+.compact-toggle {
+  font-family: 'Caveat', cursive; font-size: 14px; font-weight: 600;
+  color: var(--ink-muted); background: none; border: none;
+  cursor: pointer; padding: 2px 2px; line-height: 1;
+  transition: color .12s; user-select: none;
+  display: flex; align-items: center; gap: 3px;
+}
+.compact-toggle:hover { color: var(--ember); }
+
+/* ── Compact mode: hide task section ── */
+body.compact .divider            { display: none !important; }
+body.compact .tasks-header       { display: none !important; }
+body.compact .add-row            { display: none !important; }
+body.compact .task-list          { display: none !important; }
+body.compact .empty-msg          { display: none !important; }
+body.compact .bottom-row         { display: none !important; }
+body.compact .content            { padding-bottom: 6px; }
+body.compact .compact-toggle-row { margin-bottom: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .r-prog { transition: stroke-dashoffset 0s; }
+  .scene.wobbling { animation: none; }
+  .paper-stamp-big svg { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Pencil-border filter for active task outline -->
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <defs>
+    <filter id="pencil-border" x="-10%" y="-25%" width="120%" height="150%">
+      <feTurbulence type="turbulence" baseFrequency="0.055" numOctaves="2" seed="17" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="scene">
+
+  <!-- Drag strip + single close button -->
+  <div class="tape-bar">
+    <button class="win-close" id="closeBtn" title="Закрыть">×</button>
+  </div>
+
+  <!-- Tape -->
+  <div class="tape-1"></div>
+  <div class="tape-2"></div>
+
+  <!-- Stars -->
+  <div class="star s-bl">
+    <svg width="58" height="58" viewBox="-29 -29 58 58">
+      <polygon class="star-a" points="0,-26 6.2,-6.2 26,0 6.2,6.2 0,26 -6.2,6.2 -26,0 -6.2,-6.2"/>
+      <polygon class="star-b" points="0,-16 3.8,-3.8 16,0 3.8,3.8 0,16 -3.8,3.8 -16,0 -3.8,-3.8" opacity="0.82"/>
+    </svg>
+  </div>
+  <div class="star s-tr">
+    <svg width="36" height="36" viewBox="-18 -18 36 36">
+      <polygon class="star-a" points="0,-15 3.5,-3.5 15,0 3.5,3.5 0,15 -3.5,3.5 -15,0 -3.5,-3.5"/>
+      <polygon class="star-b" points="0,-9 2.2,-2.2 9,0 2.2,2.2 0,9 -2.2,2.2 -9,0 -2.2,-2.2" opacity="0.82"/>
+    </svg>
+  </div>
+  <div class="star s-trp">
+    <svg width="22" height="22" viewBox="-11 -11 22 22">
+      <polygon class="star-b" points="0,-9 2.2,-2.2 9,0 2.2,2.2 0,9 -2.2,2.2 -9,0 -2.2,-2.2"/>
+      <polygon class="star-a" points="0,-5.5 1.3,-1.3 5.5,0 1.3,1.3 0,5.5 -1.3,1.3 -5.5,0 -1.3,-1.3" opacity="0.80"/>
+    </svg>
+  </div>
+  <div class="star s-rp">
+    <svg width="16" height="16" viewBox="-8 -8 16 16">
+      <polygon class="star-b" points="0,-6.5 1.6,-1.6 6.5,0 1.6,1.6 0,6.5 -1.6,1.6 -6.5,0 -1.6,-1.6"/>
+    </svg>
+  </div>
+
+  <!-- Paper -->
+  <div class="paper">
+
+    <!-- Big stamps overlaid on paper surface -->
+    <div class="paper-stamps" id="paperStamps"></div>
+
+    <div class="holes">
+      <div class="hole"></div>
+      <div class="hole"></div>
+      <div class="hole"></div>
+      <div class="hole"></div>
+    </div>
+
+    <div class="content">
+
+      <div class="compliment-of-day" id="complimentOfDay"></div>
+
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="work">Work · 25m</button>
+        <button class="mode-tab"        data-mode="custom">Custom</button>
+      </div>
+
+      <div class="timer-area">
+        <div class="timer-ring">
+          <svg viewBox="0 0 118 118" overflow="visible">
+            <defs>
+              <filter id="sketchy" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence type="turbulence" baseFrequency="0.028"
+                              numOctaves="3" seed="7" result="noise"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise"
+                                   scale="4" xChannelSelector="R" yChannelSelector="G"/>
+              </filter>
+            </defs>
+            <circle class="r-track" cx="59" cy="59" r="51"/>
+            <circle class="r-prog"  cx="59" cy="59" r="51"/>
+          </svg>
+          <div class="timer-face">
+            <div class="timer-digits" id="timerDigits">25:00</div>
+            <div class="timer-edit" id="timerEdit" hidden>
+              <input class="timer-input" id="timerInputM" type="number" min="0" max="180" value="25" aria-label="минуты">
+              <span class="timer-edit-sep">:</span>
+              <input class="timer-input" id="timerInputS" type="number" min="0" max="59" value="0" aria-label="секунды">
+            </div>
+            <div class="timer-lbl">Focus</div>
+            <div class="rest-face-overlay" id="restFaceOverlay">
+              <svg viewBox="0 0 60 60" width="52" height="52" fill="none">
+                <circle cx="30" cy="30" r="25" stroke="var(--ember)" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M13 19 L23 23" stroke="var(--ember)" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M37 23 L47 19" stroke="var(--ember)" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="22" cy="30" r="2.5" fill="var(--ember)"/>
+                <circle cx="38" cy="30" r="2.5" fill="var(--ember)"/>
+                <path d="M20 43 Q30 36 40 43" stroke="var(--ember)" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="rest-bubble" id="restBubble">отдыхай! :(</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn-main" id="startBtn">Start</button>
+          <button class="btn-icon" id="resetBtn" title="Reset (R)">↺</button>
+        </div>
+      </div>
+
+      <div class="compact-toggle-row">
+        <button class="compact-toggle" id="compactBtn" title="Скрыть/показать задачи">▾ задачи</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="tasks-header">
+        <div class="tasks-lbl">Задачи на сегодня</div>
+        <button class="clear-stamps-btn" id="clearStampsBtn" hidden>стереть ✦</button>
+      </div>
+
+      <div class="add-row">
+        <input class="task-input" id="taskInput" type="text"
+               placeholder="добавить задачу…" maxlength="120" autocomplete="off">
+        <button class="btn-add" id="addBtn">+</button>
+      </div>
+      <ul class="task-list" id="taskList"></ul>
+      <div class="empty-msg" id="emptyMsg">что делаем сегодня?</div>
+
+      <div class="bottom-row">
+        <div class="theme-strip" id="themeStrip">
+          <button class="theme-dot active" data-theme="sakura" title="Sakura" style="background:#E89AAA"></button>
+          <button class="theme-dot"        data-theme="y2k"    title="Y2K"    style="background:#FF3399"></button>
+          <button class="theme-dot"        data-theme="bloom"  title="Bloom"  style="background:#4090E0"></button>
+          <button class="theme-dot"        data-theme="butter" title="Butter" style="background:#F0C030"></button>
+          <button class="theme-dot"        data-theme="noir"   title="Noir"   style="background:#2A2420"></button>
+        </div>
+        <div class="kbd-hints"><kbd>Space</kbd> старт · <kbd>R</kbd> сброс</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── Window controls ──────────────────────────────────────────────────────
+  const closeBtn = document.getElementById('closeBtn');
+  if (window.electronAPI) {
+    closeBtn.addEventListener('click', () => window.electronAPI.closeApp());
+  } else {
+    closeBtn.style.display = 'none';
+  }
+
+  // ── Timer ────────────────────────────────────────────────────────────────
+  // mode: 'work' | 'custom' | 'rest'  (rest = auto-break after work)
+  const R = 51, CIRC = 2 * Math.PI * R;
+  let mode = 'work', total = 25 * 60, remaining = total;
+  let running = false, ticker = null;
+  let customMins = 25;
+  let customSecs = 0;
+  let activeTaskId = null;
+
+  // Format accumulated seconds → "45м" / "1ч 20м"
+  function fmtTaskTime(secs) {
+    if (!secs || secs < 60) return '';
+    const m = Math.floor(secs / 60);
+    if (m < 60) return m + 'м';
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem ? h + 'ч ' + rem + 'м' : h + 'ч';
+  }
+
+  const ring        = document.querySelector('.r-prog');
+  const digits      = document.getElementById('timerDigits');
+  const timerEdit   = document.getElementById('timerEdit');
+  const timerInputM = document.getElementById('timerInputM');
+  const timerInputS = document.getElementById('timerInputS');
+  const lbl         = document.querySelector('.timer-lbl');
+  const startBtn   = document.getElementById('startBtn');
+  const resetBtn   = document.getElementById('resetBtn');
+  const input      = document.getElementById('taskInput');
+  const addBtn     = document.getElementById('addBtn');
+  const list       = document.getElementById('taskList');
+  const empty      = document.getElementById('emptyMsg');
+  const tabs       = document.querySelectorAll('.mode-tab');
+  const scene      = document.querySelector('.scene');
+
+  ring.style.strokeDasharray  = CIRC;
+  ring.style.strokeDashoffset = 0;
+
+  const fmt      = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const syncRing = () => { ring.style.strokeDashoffset = CIRC * (1 - remaining / total); };
+
+  const syncUI = () => {
+    const editMode = mode === 'custom' && !running;
+    digits.hidden    = editMode;
+    timerEdit.hidden = !editMode;
+    if (!editMode) digits.textContent = fmt(remaining);
+    else {
+      timerInputM.value = customMins;
+      timerInputS.value = String(customSecs).padStart(2, '0');
+    }
+    if (mode === 'rest')  lbl.textContent = 'отдыхайте!';
+    else if (editMode)    lbl.textContent = 'мин : сек';
+    else                  lbl.textContent = 'Focus';
+    startBtn.textContent = running ? 'Pause' : (remaining < total ? 'Resume' : 'Start');
+    document.querySelector('.timer-ring').classList.toggle('rest', mode === 'rest');
+  };
+
+  function start() { running = true;  ticker = setInterval(tick, 1000); syncUI(); }
+  function stop()  { running = false; clearInterval(ticker); ticker = null; syncUI(); }
+  function tick()  {
+    remaining--;
+    // Accumulate time on active task — only during work/custom, never during rest
+    if (activeTaskId !== null && mode !== 'rest') {
+      const t = tasks.find(t => t.id === activeTaskId);
+      if (t && !t.done) {
+        t.timeSpent = (t.timeSpent || 0) + 1;
+        // Update display without full re-render
+        const timeEl = list.querySelector(`[data-task-id="${activeTaskId}"] .task-time`);
+        if (timeEl) timeEl.textContent = fmtTaskTime(t.timeSpent);
+        save();
+      }
+    }
+    syncRing(); syncUI();
+    if (remaining <= 0) { stop(); onEnd(); }
+  }
+  function reset() { stop(); remaining = total; syncRing(); syncUI(); }
+
+  function setMode(m) {
+    if (running) stop();
+    mode = m;
+    if (m === 'work')        total = 25 * 60;
+    else if (m === 'custom') total = customMins * 60 + customSecs;
+    remaining = total;
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === m));
+    document.getElementById('restFaceOverlay')?.classList.remove('show');
+    document.getElementById('restBubble')?.classList.remove('show');
+    syncRing(); syncUI();
+  }
+
+  function windWobble() {
+    scene.classList.remove('wobbling');
+    void scene.offsetWidth;
+    scene.classList.add('wobbling');
+    scene.addEventListener('animationend', () => {
+      scene.classList.remove('wobbling');
+    }, { once: true });
+  }
+
+  function onEnd() {
+    chime();
+    windWobble();
+    if (mode === 'work') {
+      mode = 'rest'; total = 5 * 60; remaining = total;
+      tabs.forEach(t => t.classList.remove('active'));
+      syncRing(); syncUI();
+      start();
+    } else if (mode === 'rest') {
+      setMode('work');
+    }
+  }
+
+  function chime() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [523.25, 659.25, 783.99].forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = f;
+        const t = ctx.currentTime + i * 0.18;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.22, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.44);
+        o.start(t); o.stop(t + 0.5);
+      });
+    } catch(_) {}
+  }
+
+  // ── Rest taunt ────────────────────────────────────────────────────────────
+  const restFace   = document.getElementById('restFaceOverlay');
+  const restBubble = document.getElementById('restBubble');
+  let restTauntTimer = null;
+  const showTaunt  = () => { restFace.classList.add('show'); restBubble.classList.add('show'); };
+  const hideTaunt  = () => { restFace.classList.remove('show'); restBubble.classList.remove('show'); };
+  const flashTaunt = () => { showTaunt(); clearTimeout(restTauntTimer); restTauntTimer = setTimeout(hideTaunt, 1800); };
+
+  const timerRing = document.querySelector('.timer-ring');
+  timerRing.addEventListener('mouseenter', () => { if (mode === 'rest') showTaunt(); });
+  timerRing.addEventListener('mouseleave', () => { if (mode === 'rest') hideTaunt(); });
+
+  startBtn.addEventListener('click', () => {
+    if (mode === 'rest') { flashTaunt(); return; }
+    running ? stop() : start();
+  });
+  resetBtn.addEventListener('click', reset);
+  tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
+
+  const updateCustomTotal = () => {
+    total = customMins * 60 + customSecs;
+    if (total < 1) { total = 1; customSecs = 1; customMins = 0; }
+    remaining = total;
+    syncRing();
+  };
+  timerInputM.addEventListener('input', () => {
+    customMins = Math.max(0, Math.min(180, parseInt(timerInputM.value) || 0));
+    updateCustomTotal();
+  });
+  timerInputS.addEventListener('input', () => {
+    customSecs = Math.max(0, Math.min(59, parseInt(timerInputS.value) || 0));
+    updateCustomTotal();
+  });
+  timerInputM.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') timerInputM.blur();
+  });
+  timerInputS.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') timerInputS.blur();
+  });
+
+  document.addEventListener('keydown', e => {
+    const active = document.activeElement;
+    if (active === input || active === timerInputM || active === timerInputS) return;
+    if (e.code === 'Space') { e.preventDefault(); running ? stop() : start(); }
+    if (e.code === 'KeyR')  { e.preventDefault(); reset(); }
+  });
+
+  // ── Compliment of the day ────────────────────────────────────────────────
+  const COMPLIMENTS = [
+    '✨ ты сегодня просто огонь',
+    '🌸 умница и красавица — это ты',
+    '💪 всё у тебя получится, даже не сомневайся',
+    '🌿 ты делаешь мир чуть лучше каждый день',
+    '⚡ твоя энергия заряжает всех вокруг',
+    '🎯 ты справляешься — и это заметно',
+    '🌈 сегодня твой день, бери от него всё',
+    '💫 ты сильнее, чем думаешь',
+    '🔮 каждое твоё усилие имеет значение',
+    '🦋 ты вдохновляешь просто своим присутствием',
+    '🎨 у тебя потрясающий вкус — во всём',
+    '☕ ты создаёшь уют там, где появляешься',
+    '🐾 даже маленькие шаги ведут к большому',
+    '🌺 твоя улыбка — это суперсила',
+    '👑 ты замечательная, и это не обсуждается',
+    '🚀 продолжай — ты на верном пути',
+    '💝 всё, что ты делаешь — делаешь с душой',
+    '☀️ сегодня хороший день, чтобы быть тобой',
+    '🌙 твоя забота о себе вдохновляет',
+    '💎 ты — настоящее сокровище',
+    '🎵 не останавливайся, всё идёт как надо',
+    '🍀 ты умеешь находить красоту в мелочах',
+    '🔥 твои идеи — это огонь',
+    '🌍 мир стал лучше, когда ты в нём появилась',
+    '🦄 ты справишься — ты всегда справляешься',
+  ];
+  (function setCompliment() {
+    const el = document.getElementById('complimentOfDay');
+    if (el) el.textContent = COMPLIMENTS[Math.floor(Math.random() * COMPLIMENTS.length)];
+  })();
+
+  // ── Stamps ───────────────────────────────────────────────────────────────
+  const STAMP_COLORS = ['#FF4D8D','#FF6B35','#00C9A7','#7C4DFF','#FFB300','#00B4D8','#E040FB','#FF5252'];
+  const STAMP_SHAPES = ['sun', 'flower', 'crown', 'star', 'smiley'];
+
+  function randomPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function seededRand(seed, offset) {
+    const x = Math.sin(seed * 127.1 + offset * 311.7 + 19) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  // ── Filled SVGs (small inline stamps next to task text) ──────────────────
+  function makeSun(color, size) {
+    const s = size || 24;
+    const rays = Array.from({length:8}, (_, i) =>
+      `<ellipse cx="20" cy="8.5" rx="2.2" ry="5.2" fill="${color}" opacity="0.88" transform="rotate(${i * 45},20,20)"/>`
+    ).join('');
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      ${rays}<circle cx="20" cy="20" r="9" fill="${color}"/>
+      <circle cx="20" cy="20" r="5" fill="rgba(255,255,255,0.5)"/>
+    </svg>`;
+  }
+  function makeFlower(color, size) {
+    const s = size || 24;
+    const petals = Array.from({length:6}, (_, i) =>
+      `<ellipse cx="20" cy="9" rx="4" ry="6.5" fill="${color}" opacity="0.82" transform="rotate(${i*60},20,20)"/>`
+    ).join('');
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      ${petals}<circle cx="20" cy="20" r="8.5" fill="${color}"/>
+      <circle cx="20" cy="20" r="4.5" fill="rgba(255,255,255,0.5)"/>
+    </svg>`;
+  }
+  function makeCrown(color, size) {
+    const s = size || 24;
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 31 L6 19 L13 25 L20 12 L27 25 L34 19 L34 31 Z" fill="${color}"/>
+      <circle cx="20" cy="12" r="3" fill="rgba(255,255,255,0.55)"/>
+      <circle cx="6"  cy="19" r="2.5" fill="rgba(255,255,255,0.4)"/>
+      <circle cx="34" cy="19" r="2.5" fill="rgba(255,255,255,0.4)"/>
+    </svg>`;
+  }
+  function makeSmiley(color, size) {
+    const s = size || 24;
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="18" fill="${color}"/>
+      <circle cx="14" cy="16.5" r="2.5" fill="rgba(255,255,255,0.9)"/>
+      <circle cx="26" cy="16.5" r="2.5" fill="rgba(255,255,255,0.9)"/>
+      <path d="M13 24 Q20 31 27 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.8" stroke-linecap="round"/>
+    </svg>`;
+  }
+  function makeStarBurst(color, size) {
+    const s = size || 24;
+    const pts = Array.from({length: 16}, (_, i) => {
+      const ang = (i * Math.PI / 8) - Math.PI / 2;
+      const r   = i % 2 === 0 ? 17 : 7;
+      return `${(20 + r * Math.cos(ang)).toFixed(2)},${(20 + r * Math.sin(ang)).toFixed(2)}`;
+    }).join(' ');
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="${pts}" fill="${color}"/>
+      <circle cx="20" cy="20" r="5.5" fill="rgba(255,255,255,0.5)"/>
+    </svg>`;
+  }
+
+  // Small filled stamp next to task text
+  function makeStampSVG(stamp, size) {
+    if (!stamp) return '';
+    if (stamp.shape === 'sun')    return makeSun(stamp.color, size);
+    if (stamp.shape === 'flower') return makeFlower(stamp.color, size);
+    if (stamp.shape === 'crown')  return makeCrown(stamp.color, size);
+    if (stamp.shape === 'smiley') return makeSmiley(stamp.color, size);
+    if (stamp.shape === 'star')   return makeStarBurst(stamp.color, size);
+    return '';
+  }
+
+  // ── Line-art SVGs (big paper overlays — rubber stamp impression style) ───
+  function makeLineSun(color, size) {
+    const s = size || 52;
+    const rays = Array.from({length:8}, (_, i) => {
+      const ang = i * Math.PI / 4;
+      const x1 = (20 + 11.5 * Math.cos(ang)).toFixed(2);
+      const y1 = (20 + 11.5 * Math.sin(ang)).toFixed(2);
+      const x2 = (20 + 18.5 * Math.cos(ang)).toFixed(2);
+      const y2 = (20 + 18.5 * Math.sin(ang)).toFixed(2);
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`;
+    }).join('');
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      ${rays}
+      <circle cx="20" cy="20" r="9" fill="none" stroke="${color}" stroke-width="3"/>
+      <circle cx="20" cy="20" r="3" fill="${color}"/>
+    </svg>`;
+  }
+  function makeLineFlower(color, size) {
+    const s = size || 52;
+    const petals = Array.from({length:6}, (_, i) =>
+      `<ellipse cx="20" cy="9" rx="4.5" ry="7" fill="none" stroke="${color}" stroke-width="2.5" transform="rotate(${i*60},20,20)"/>`
+    ).join('');
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      ${petals}
+      <circle cx="20" cy="20" r="8" fill="none" stroke="${color}" stroke-width="2.8"/>
+      <circle cx="20" cy="20" r="3" fill="${color}"/>
+    </svg>`;
+  }
+  function makeLineCrown(color, size) {
+    const s = size || 52;
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 31 L6 19 L13 25 L20 12 L27 25 L34 19 L34 31 Z"
+            fill="none" stroke="${color}" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="20" cy="12" r="2.5" fill="${color}"/>
+      <circle cx="6"  cy="19" r="2"   fill="${color}"/>
+      <circle cx="34" cy="19" r="2"   fill="${color}"/>
+    </svg>`;
+  }
+  function makeLineSmiley(color, size) {
+    const s = size || 52;
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="16" fill="none" stroke="${color}" stroke-width="3"/>
+      <circle cx="14" cy="16.5" r="2.2" fill="${color}"/>
+      <circle cx="26" cy="16.5" r="2.2" fill="${color}"/>
+      <path d="M13 24 Q20 31 27 24" fill="none" stroke="${color}" stroke-width="2.8" stroke-linecap="round"/>
+    </svg>`;
+  }
+  function makeLineStar(color, size) {
+    const s = size || 52;
+    const pts = Array.from({length: 16}, (_, i) => {
+      const ang = (i * Math.PI / 8) - Math.PI / 2;
+      const r   = i % 2 === 0 ? 17 : 7;
+      return `${(20 + r * Math.cos(ang)).toFixed(2)},${(20 + r * Math.sin(ang)).toFixed(2)}`;
+    }).join(' ');
+    return `<svg width="${s}" height="${s}" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="${pts}" fill="none" stroke="${color}" stroke-width="2.8" stroke-linejoin="round"/>
+      <circle cx="20" cy="20" r="3.5" fill="${color}"/>
+    </svg>`;
+  }
+
+  // Big line-art stamp for paper overlay
+  function makeBigStampSVG(stamp, size) {
+    if (!stamp) return '';
+    if (stamp.shape === 'sun')    return makeLineSun(stamp.color, size);
+    if (stamp.shape === 'flower') return makeLineFlower(stamp.color, size);
+    if (stamp.shape === 'crown')  return makeLineCrown(stamp.color, size);
+    if (stamp.shape === 'smiley') return makeLineSmiley(stamp.color, size);
+    if (stamp.shape === 'star')   return makeLineStar(stamp.color, size);
+    return '';
+  }
+
+  // Render big stamps — 3 zones from sketch: left edge, right edge, bottom strip
+  // Collision guard: max 50% overlap between stamps
+  function renderPaperStamps() {
+    const container = document.getElementById('paperStamps');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const MIN_DX = 8.5;
+    const MIN_DY = 5.0;
+
+    const ZONES = [
+      (s, a) => ({
+        left: seededRand(s, a * 11 + 1) * 13,
+        top:  6 + seededRand(s, a * 11 + 2) * 84,
+      }),
+      (s, a) => ({
+        left: 77 + seededRand(s, a * 11 + 1) * 18,
+        top:  6 + seededRand(s, a * 11 + 2) * 84,
+      }),
+      (s, a) => ({
+        left: 12 + seededRand(s, a * 11 + 1) * 68,
+        top:  84 + seededRand(s, a * 11 + 2) * 13,
+      }),
+    ];
+
+    const doneTasks = tasks.filter(t => t.stamp && t.done);
+    const placed = [];
+
+    doneTasks.forEach((task, i) => {
+      const seed = Math.abs(Math.floor(task.id * 17)) % 99991;
+      const zoneFn = ZONES[i % 3];
+
+      let pos = zoneFn(seed, 0);
+      for (let a = 0; a < 20; a++) {
+        const cand = zoneFn(seed, a);
+        const collides = placed.some(p =>
+          Math.abs(p.left - cand.left) < MIN_DX &&
+          Math.abs(p.top  - cand.top)  < MIN_DY
+        );
+        if (!collides) { pos = cand; break; }
+      }
+      placed.push(pos);
+
+      const rotate = (seededRand(seed, 3) - 0.5) * 60;
+
+      const div = document.createElement('div');
+      div.className = 'paper-stamp-big';
+      div.style.left      = `${pos.left}%`;
+      div.style.top       = `${pos.top}%`;
+      div.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
+      div.innerHTML = makeBigStampSVG(task.stamp, 54);
+      container.appendChild(div);
+    });
+  }
+
+  // ── Tasks ────────────────────────────────────────────────────────────────
+  let tasks = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem('sf2-tasks') || '[]');
+    tasks = raw.map((t, i) => ({
+      id:        t.id || (Date.now() + i),
+      text:      t.text || '',
+      done:      !!t.done,
+      stamp:     t.stamp || null,
+      timeSpent: t.timeSpent || 0,
+      subtasks: Array.isArray(t.subtasks) ? t.subtasks.map(s => ({ text: s.text||'', done: !!s.done, stamp: s.stamp||null })) : [],
+    }));
+  } catch(_) {}
+
+  const save = () => {
+    try { localStorage.setItem('sf2-tasks', JSON.stringify(tasks)); } catch(_) {}
+  };
+
+  const expanded = new Set();
+
+  function syncClearBtn() {
+    const btn = document.getElementById('clearStampsBtn');
+    if (btn) btn.hidden = !tasks.some(t => t.stamp);
+  }
+
+  function render() {
+    list.innerHTML = '';
+    empty.style.display = tasks.length ? 'none' : '';
+
+    tasks.forEach((task, i) => {
+      const li = document.createElement('li');
+      li.className = 'task-item' + (task.done ? ' done' : '') + (task.id === activeTaskId ? ' active' : '');
+      li.dataset.taskId = task.id;
+
+      const row = document.createElement('div');
+      row.className = 'task-row';
+
+      const cb = document.createElement('button');
+      cb.className = 'task-cb';
+      cb.innerHTML = '<span class="chk">✓</span>';
+      cb.onclick = () => {
+        task.done = !task.done;
+        if (task.done && !task.stamp) {
+          const lastColor = tasks.filter(t => t.stamp && t.id !== task.id).slice(-1)[0]?.stamp?.color;
+          const availColors = lastColor ? STAMP_COLORS.filter(c => c !== lastColor) : STAMP_COLORS;
+          task.stamp = { color: randomPick(availColors), shape: randomPick(STAMP_SHAPES) };
+        }
+        save(); render(); renderPaperStamps();
+      };
+
+      const txt = document.createElement('span');
+      txt.className = 'task-text';
+      txt.textContent = task.text;
+      txt.title = task.id === activeTaskId ? 'кликни чтобы снять выделение' : 'кликни — работать над этой';
+      txt.style.cursor = 'pointer';
+      txt.onclick = (e) => {
+        e.stopPropagation();
+        activeTaskId = (activeTaskId === task.id) ? null : task.id;
+        render();
+      };
+
+      const timeEl = document.createElement('span');
+      timeEl.className = 'task-time';
+      timeEl.textContent = fmtTaskTime(task.timeSpent || 0);
+
+      const stampEl = document.createElement('div');
+      stampEl.className = 'task-stamp';
+      stampEl.title = 'штампик!';
+      if (task.stamp && task.done) stampEl.innerHTML = makeStampSVG(task.stamp);
+
+      const expandBtn = document.createElement('button');
+      expandBtn.className = 'task-expand';
+      const isExpanded = expanded.has(task.id);
+      expandBtn.textContent = isExpanded ? '▾' : '▸';
+      expandBtn.title = 'подзадачи';
+      expandBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (expanded.has(task.id)) expanded.delete(task.id);
+        else expanded.add(task.id);
+        render();
+      };
+
+      const del = document.createElement('button');
+      del.className = 'task-del';
+      del.textContent = '×';
+      del.onclick = () => {
+        if (activeTaskId === task.id) activeTaskId = null;
+        tasks.splice(i, 1); save(); render(); renderPaperStamps();
+      };
+
+      row.append(cb, txt, timeEl, stampEl, expandBtn, del);
+      li.appendChild(row);
+
+      if (isExpanded) {
+        const area = document.createElement('div');
+        area.className = 'subtask-area';
+
+        task.subtasks.forEach((sub, j) => {
+          const si = document.createElement('div');
+          si.className = 'subtask-item' + (sub.done ? ' done' : '');
+
+          const scb = document.createElement('button');
+          scb.className = 'sub-cb';
+          scb.innerHTML = '<span class="sub-chk">✓</span>';
+          scb.onclick = () => {
+            const sub = tasks[i].subtasks[j];
+            sub.done = !sub.done;
+            if (sub.done && !sub.stamp) {
+              const lastColor = tasks[i].subtasks.filter((s,k) => k !== j && s.stamp).slice(-1)[0]?.stamp?.color;
+              const availColors = lastColor ? STAMP_COLORS.filter(c => c !== lastColor) : STAMP_COLORS;
+              sub.stamp = { color: randomPick(availColors), shape: randomPick(STAMP_SHAPES) };
+            }
+            save(); render();
+          };
+
+          const stxt = document.createElement('span');
+          stxt.className = 'sub-text';
+          stxt.textContent = sub.text;
+          stxt.title = sub.text;
+
+          const sstamp = document.createElement('div');
+          sstamp.className = 'sub-stamp';
+          if (sub.stamp && sub.done) sstamp.innerHTML = makeStampSVG(sub.stamp, 14);
+
+          const sdel = document.createElement('button');
+          sdel.className = 'sub-del';
+          sdel.textContent = '×';
+          sdel.onclick = () => { tasks[i].subtasks.splice(j, 1); save(); render(); };
+
+          si.append(scb, stxt, sstamp, sdel);
+          area.appendChild(si);
+        });
+
+        const addRow = document.createElement('div');
+        addRow.className = 'subtask-add-row';
+        const subInput = document.createElement('input');
+        subInput.className = 'subtask-input';
+        subInput.type = 'text';
+        subInput.placeholder = 'подзадача…';
+        subInput.maxLength = 80;
+        subInput.autocomplete = 'off';
+
+        const subAdd = document.createElement('button');
+        subAdd.className = 'sub-add';
+        subAdd.textContent = '+';
+
+        const addSubtask = () => {
+          const text = subInput.value.trim();
+          if (!text) return;
+          tasks[i].subtasks.push({ text, done: false, stamp: null });
+          save(); render();
+          expanded.add(task.id);
+        };
+
+        subAdd.onclick = addSubtask;
+        subInput.addEventListener('keydown', e => {
+          e.stopPropagation();
+          if (e.key === 'Enter') addSubtask();
+        });
+
+        addRow.append(subInput, subAdd);
+        area.appendChild(addRow);
+        li.appendChild(area);
+      }
+
+      list.appendChild(li);
+    });
+
+    syncClearBtn();
+  }
+
+  function add() {
+    const text = input.value.trim();
+    if (!text) return;
+    tasks.push({ id: Date.now() + Math.random(), text, done: false, stamp: null, subtasks: [], timeSpent: 0 });
+    save(); render();
+    input.value = ''; input.focus();
+  }
+
+  addBtn.addEventListener('click', add);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+
+  document.getElementById('clearStampsBtn').addEventListener('click', () => {
+    tasks.forEach(t => { t.stamp = null; });
+    save(); render(); renderPaperStamps();
+  });
+
+  syncUI(); syncRing(); render(); renderPaperStamps();
+
+  // ── Compact mode ─────────────────────────────────────────────────────────
+  const compactBtn = document.getElementById('compactBtn');
+  let isCompact = false;
+  try { isCompact = localStorage.getItem('sf2-compact') === '1'; } catch(_) {}
+
+  function applyCompact(compact) {
+    isCompact = compact;
+    document.body.classList.toggle('compact', compact);
+    compactBtn.textContent = compact ? '▴ задачи' : '▾ задачи';
+    if (window.electronAPI && window.electronAPI.resizeWindow) {
+      window.electronAPI.resizeWindow(390, compact ? 310 : 670);
+    }
+    try { localStorage.setItem('sf2-compact', compact ? '1' : '0'); } catch(_) {}
+  }
+
+  compactBtn.addEventListener('click', () => applyCompact(!isCompact));
+
+  // Restore saved compact state on startup
+  if (isCompact) applyCompact(true);
+
+  // ── Themes ──────────────────────────────────────────────────────────────
+  const THEMES = {
+    sakura: {
+      '--paper':'#F8F6F1','--line-c':'#C0D1ED','--margin-c':'#EDB8C4',
+      '--ink':'#1A1826','--ink-mid':'#4C4A6A','--ink-muted':'#9494B8',
+      '--hole-bg':'#E6E2DC','--ember':'#C83C0A',
+      '--star-a':'#FF5CAD','--star-b':'#00C9A7',
+      '--tape1-bg':'linear-gradient(135deg,rgba(220,150,165,.55) 0%,rgba(210,135,155,.70) 35%,rgba(215,145,160,.60) 65%)',
+      '--tape2-bg':'linear-gradient(135deg,rgba(90,105,52,.60) 0%,rgba(80,98,46,.72) 40%,rgba(88,103,52,.62) 100%)',
+    },
+    y2k: {
+      '--paper':'#FFF4FA','--line-c':'#F2C0DC','--margin-c':'#FF88BB',
+      '--ink':'#1A0810','--ink-mid':'#601840','--ink-muted':'#C060A0',
+      '--hole-bg':'#F8E0F0','--ember':'#D80A60',
+      '--star-a':'#FF2299','--star-b':'#8A0050',
+      '--tape1-bg':'linear-gradient(135deg,rgba(235,50,145,.72) 0%,rgba(215,30,130,.85) 40%,rgba(225,40,138,.76) 100%)',
+      '--tape2-bg':'linear-gradient(135deg,rgba(255,130,195,.60) 0%,rgba(240,100,178,.70) 40%,rgba(248,118,187,.64) 100%)',
+    },
+    bloom: {
+      '--paper':'#F4F9FF','--line-c':'#B8D8F8','--margin-c':'#80B8F0',
+      '--ink':'#0A1020','--ink-mid':'#204880','--ink-muted':'#7090C0',
+      '--hole-bg':'#D8ECFC','--ember':'#1060D8',
+      '--star-a':'#1888D8','--star-b':'#28B050',
+      '--tape1-bg':'linear-gradient(135deg,rgba(60,140,220,.65) 0%,rgba(40,120,205,.78) 40%,rgba(52,132,214,.68) 100%)',
+      '--tape2-bg':'linear-gradient(135deg,rgba(60,180,140,.58) 0%,rgba(40,162,125,.70) 40%,rgba(52,172,134,.62) 100%)',
+    },
+    butter: {
+      '--paper':'#FFFBEE','--line-c':'#E8D898','--margin-c':'#E0A828',
+      '--ink':'#1A1408','--ink-mid':'#604820','--ink-muted':'#A08040',
+      '--hole-bg':'#F0E4BE','--ember':'#B86808',
+      '--star-a':'#C89010','--star-b':'#C84010',
+      '--tape1-bg':'linear-gradient(135deg,rgba(220,165,30,.68) 0%,rgba(205,148,20,.80) 40%,rgba(214,158,26,.72) 100%)',
+      '--tape2-bg':'linear-gradient(135deg,rgba(200,80,20,.55) 0%,rgba(185,65,12,.65) 40%,rgba(194,74,17,.58) 100%)',
+    },
+    noir: {
+      '--paper':'#1E1C18','--line-c':'#383428','--margin-c':'#504030',
+      '--ink':'#E8DCC8','--ink-mid':'#A09080','--ink-muted':'#686050',
+      '--hole-bg':'#141210','--ember':'#FF5020',
+      '--star-a':'#D0A010','--star-b':'#C03080',
+      '--tape1-bg':'linear-gradient(135deg,rgba(30,26,22,.90) 0%,rgba(20,18,14,.95) 40%,rgba(26,22,18,.92) 100%)',
+      '--tape2-bg':'linear-gradient(135deg,rgba(65,55,44,.82) 0%,rgba(50,42,34,.90) 40%,rgba(58,49,40,.85) 100%)',
+    },
+  };
+
+  const root = document.documentElement;
+
+  function applyTheme(name) {
+    const t = THEMES[name]; if (!t) return;
+    for (const [k, v] of Object.entries(t)) root.style.setProperty(k, v);
+    root.setAttribute('data-theme', name);
+    document.querySelectorAll('.theme-dot').forEach(d =>
+      d.classList.toggle('active', d.dataset.theme === name)
+    );
+    try { localStorage.setItem('sf2-theme', name); } catch(_) {}
+  }
+
+  document.getElementById('themeStrip').addEventListener('click', e => {
+    const dot = e.target.closest('.theme-dot');
+    if (dot) applyTheme(dot.dataset.theme);
+  });
+
+  try {
+    const saved = localStorage.getItem('sf2-theme');
+    if (saved && THEMES[saved]) applyTheme(saved);
+  } catch(_) {}
+
+})();
+</script>
+</body>
+</html>

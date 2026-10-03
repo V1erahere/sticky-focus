@@ -1,0 +1,5 @@
+node_modules/
+crash-log.txt
+*.log
+dist/
+out/

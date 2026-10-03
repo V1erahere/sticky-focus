@@ -1,0 +1,12 @@
+{
+  "name": "sticky-focus-v2",
+  "version": "2.0.0",
+  "description": "Sticky note Pomodoro timer that stays on top of all windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^42.0.0"
+  }
+}
