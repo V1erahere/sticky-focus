@@ -8,7 +8,7 @@
 
 Всегда поверх всех окон · Бесплатно · Для Windows
 
-[![Скачать](https://img.shields.io/badge/⬇️_Скачать-Windows-C83C0A?style=for-the-badge)]((https://github.com/V1erahere/sticky-focus/releases/download/v1.0.0/Sticky-Focus-2.0.0.exe))
+[![Скачать](https://img.shields.io/badge/⬇️_Скачать-Windows-C83C0A?style=for-the-badge)]([(https://github.com/V1erahere/sticky-focus/releases/download/v1.0.0/Sticky-Focus-2.0.0.exe)](https://github.com/V1erahere/sticky-focus/releases/download/v1.0.0/Sticky-Focus-2.0.0.exe))
 
 </div>
 
